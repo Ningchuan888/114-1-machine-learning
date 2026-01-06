@@ -256,3 +256,241 @@ Windows 10 專業版64位元
 
     def reset(self):
         print(f"[{self.side}] 這一局結束。")
+
+# 打磚塊
+## 架構
+<img width="1798" height="827" alt="image" src="https://github.com/user-attachments/assets/0c5bef01-9a59-438d-8727-37bcabd6385c" />
+
+## 設計
+<img width="486" height="827" alt="image" src="https://github.com/user-attachments/assets/c1709992-8bf9-4232-a922-59e2f1095f12" />
+<img width="1128" height="885" alt="image" src="https://github.com/user-attachments/assets/9e08e58c-bb35-44e3-ad64-25e7993068a0" />
+
+## API
+### 專案 : 資料搜集階段 (ml_play.py)
+<img width="936" height="826" alt="image" src="https://github.com/user-attachments/assets/e42a61bf-bafb-4782-80ff-f718f03c9856" />
+
+### 專案 : 模型訓練階段 (train_speed.py)
+<img width="1270" height="569" alt="image" src="https://github.com/user-attachments/assets/aedae958-c735-406a-ade2-92a7c26e559c" />
+
+### 專案 : 實際遊玩階段 (Playing.py)
+<img width="1174" height="827" alt="image" src="https://github.com/user-attachments/assets/87c71649-6909-4ab9-8435-a725d60d8cbd" />
+
+## API&程式碼
+<img width="1280" height="621" alt="image" src="https://github.com/user-attachments/assets/6ae7e136-4550-462b-8f23-fecad8d10524" />
+
+    def update(self, scene_info, *args, **kwargs):
+        if scene_info["status"] != "GAME_ALIVE":
+            return "RESET"
+
+        if not scene_info["ball_served"]:
+            self.ball_served = True
+            self.previous_ball = scene_info["ball"]
+            return "SERVE_TO_LEFT"
+
+        # 1. 取得資訊
+        ball_x = scene_info["ball"][0] + 2.5
+        ball_y = scene_info["ball"][1] + 2.5
+        platform_x, self.platform_y = scene_info["platform"]
+        bricks = scene_info["bricks"] 
+        
+        vx = ball_x - (self.previous_ball[0] + 2.5)
+        vy = ball_y - (self.previous_ball[1] + 2.5)
+
+        # 2. [物理預測]
+        if vy > 0:
+            steps = (self.platform_y - ball_y) / vy 
+            raw_pred_x = ball_x + (vx * steps)
+            while raw_pred_x < 0 or raw_pred_x > 200:
+                if raw_pred_x < 0: raw_pred_x = -raw_pred_x
+                elif raw_pred_x > 200: raw_pred_x = 400 - raw_pred_x
+        else:
+            raw_pred_x = ball_x
+            # 球往上飛，準備換下一個雨刷角度
+            if ball_y > 350: 
+                 pass 
+
+        # 3. [策略核心]
+        if vy > 0: # 球往下掉
+            
+            # --- [A. 絕對防守] ---
+            if ball_y > 300 or abs(vy) > 10:
+                self.locked_offset = 0
+            
+            else:
+                num_bricks = len(bricks)
+                
+                # --- [B. 殘局動態切球 (Active Wiper)] ---
+                if 0 < num_bricks <= 3:
+                    
+                    # 隨機切換角度
+                    if random.random() < 0.08: 
+                        self.wiper_index = (self.wiper_index + 1) % len(self.wiper_angles)
+                        print(f"極限切球中... 剩 {num_bricks} 磚 | 角度: {self.wiper_angles[self.wiper_index]}")
+                    
+                    angle = self.wiper_angles[self.wiper_index]
+                    self.locked_offset = angle
+
+                # --- [C. 正常導引] ---
+                elif num_bricks > 3:
+                    if self.target_brick is None or self.target_brick not in bricks:
+                        sorted_bricks = sorted(bricks, key=lambda b: b[1], reverse=True)
+                        self.target_brick = sorted_bricks[0]
+
+                    target_x = self.target_brick[0]
+                    dx = target_x - raw_pred_x 
+                    calculated_offset = dx * 0.35
+                    
+                    if calculated_offset > 17: calculated_offset = 17
+                    elif calculated_offset < -17: calculated_offset = -17
+                    
+                    self.locked_offset = int(calculated_offset)
+                    
+                    if abs(vx) < 1.0:
+                        self.locked_offset = random.choice([15, -15])
+                else:
+                    self.locked_offset = 0
+
+            # 計算最終板子目標
+            self.pred_x = raw_pred_x - self.locked_offset
+        
+        else: # 球往上飛
+            self.pred_x = ball_x
+
+        # 4. 移動動作
+        platform_center = platform_x + 20
+        action = 2 
+        
+        # --- [關鍵修正：動態切球邏輯] ---
+        # 如果正在殘局雨刷模式，我們要讓板子「動起來」
+        # 透過故意製造誤差，讓板子為了追球而產生速度
+        
+        real_target = self.pred_x
+        
+        # 如果要切右邊 (Offset > 0)，我們故意瞄準球的右邊一點點
+        # 這樣板子會為了追球而往左跑，產生左旋？不，反過來。
+        # 總之，為了製造切球效果，我們讓板子保持移動狀態。
+        
+        if platform_center < real_target - 2:
+            action = 1 
+        elif platform_center > real_target + 2:
+            action = 0 
+        else:
+            # 如果已經對準了，但在殘局模式下，我們不要停！
+            # 強制微動，保持板子有速度
+            if len(bricks) <= 3:
+                action = random.choice([0, 1]) # 原地抖動，保持活性
+            else:
+                action = 2
+
+        # 5. 存入記憶體
+        self.data.append([ball_x, ball_y, platform_x, vx, vy])
+        self.target.append(action)
+        self.previous_ball = scene_info["ball"]
+
+        if action == 0: return "MOVE_LEFT"
+        elif action == 1: return "MOVE_RIGHT"
+        else: return "NONE"
+<img width="1278" height="397" alt="image" src="https://github.com/user-attachments/assets/7d270d98-a982-4c65-946e-9949da3c198c" />
+
+    def reset(self):
+        print(f"Game Over. Saving {len(self.data)} rows...")
+        with open(self.data_path, "wb") as f:
+            pickle.dump(self.data, f)
+        with open(self.target_path, "wb") as f:
+            pickle.dump(self.target, f)
+        self.ball_served = False
+<img width="1272" height="515" alt="image" src="https://github.com/user-attachments/assets/e9ce4a1c-51c0-483d-b37c-ae9aa1dba9dd" />
+
+     # 1. 讀取資料
+     path = os.path.dirname(__file__)
+     data_path = os.path.join(path, "data.pickle")
+     target_path = os.path.join(path, "target.pickle")
+
+     if not os.path.exists(data_path):
+          print(" 找不到 data.pickle，請先執行遊戲進行蒐集！")
+          exit()
+
+     with open(data_path, "rb") as f:
+          data = pickle.load(f)
+     with open(target_path, "rb") as f:
+          target = pickle.load(f)
+
+     print(f"📂 載入數據... 共 {len(data)} 筆")
+
+     # 2. 轉換格式
+     X = np.array(data)
+     y = np.array(target)
+
+     # 3. 設定隨機森林參數
+     # n_estimators=100: 召喚 100 棵決策樹來投票
+     # max_depth=20: 限制樹的深度，避免它過度死記硬背 (Overfitting)
+     print(" 開始訓練隨機森林模型...")
+     model = RandomForestClassifier(n_estimators=100, max_depth=20, n_jobs=-1)
+     model.fit(X, y)
+
+     # 4. 儲存模型
+     model_path = os.path.join(path, "rf_model.pickle")
+     with open(model_path, "wb") as f:
+         pickle.dump(model, f)
+
+     print(f"🎉 訓練完成！模型已儲存至: {model_path}")
+     print("現在可以執行 ml_play.py 進行測試了。")
+<img width="1270" height="343" alt="image" src="https://github.com/user-attachments/assets/0c8ef570-640b-4120-9fbf-f67871afd536" />
+
+     class MLPlay:
+     　　def __init__(self, ai_name, *args, **kwargs):
+            self.ball_served = False
+            self.previous_ball = (0, 0)
+        
+            # 1. 載入模型
+            path = os.path.dirname(__file__)
+            model_path = os.path.join(path, "rf_model.pickle")
+        
+            if os.path.exists(model_path):
+            　　with open(model_path, "rb") as f:
+                    self.model = pickle.load(f)
+               print(f" 成功載入隨機森林模型: rf_model.pickle")
+           　else:
+                 print("找不到模型檔！請先執行 train_rf.py")
+                 self.model = None
+<img width="1270" height="451" alt="image" src="https://github.com/user-attachments/assets/836fa9f4-06a6-418f-b641-172d22e0b5fc" />
+
+    def update(self, scene_info, *args, **kwargs):
+        if scene_info["status"] != "GAME_ALIVE":
+            return "RESET"
+
+        if not scene_info["ball_served"]:
+            self.ball_served = True
+            self.previous_ball = scene_info["ball"]
+            return "SERVE_TO_LEFT"
+
+        # 2. 整理特徵 (Input)
+        ball_x = scene_info["ball"][0] + 2.5
+        ball_y = scene_info["ball"][1] + 2.5
+        platform_x = scene_info["platform"][0]
+        vx = ball_x - (self.previous_ball[0] + 2.5)
+        vy = ball_y - (self.previous_ball[1] + 2.5)
+        self.previous_ball = (scene_info["ball"][0], scene_info["ball"][1])
+
+        # 3. 模型預測 (Prediction)
+        # 只有當球往下掉 (vy > 0) 時才問模型，節省資源避免 Delay
+        # 球往上飛時，簡單跟隨 X 軸即可
+        if self.model and vy > 0:
+            input_data = np.array([[ball_x, ball_y, platform_x, vx, vy]])
+            action_code = self.model.predict(input_data)[0]
+            return ["MOVE_LEFT", "MOVE_RIGHT", "NONE"][action_code]
+        else:
+            # 球往上飛時的簡單省電邏輯
+            if platform_x + 20 < ball_x - 2: return "MOVE_RIGHT"
+            elif platform_x + 20 > ball_x + 2: return "MOVE_LEFT"
+            return "NONE"
+
+    def reset(self):
+        self.ball_served = False
+
+# 分工表
+<img width="491" height="170" alt="image" src="https://github.com/user-attachments/assets/37ae6e88-67b5-4b13-8edd-f3042fdf6cf0" />
+
+# 參考資料
+PAIA遊戲：https://app.paia-arena.com/game/1/code/20128/play?difficulty=EASY&level=1&levelfile
+
