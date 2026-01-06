@@ -1,10 +1,10 @@
 # 機器學習與實作
 ## 需求-功能
-<img width="1544" height="793" alt="image" src="https://github.com/user-attachments/assets/d33c934a-0439-4b80-8f05-c63211e08174" />
+<img width="1089" height="561" alt="image" src="https://github.com/user-attachments/assets/89042f36-9ea4-457c-ba3b-acae4483f8d7" />
 <img width="1155" height="586" alt="image" src="https://github.com/user-attachments/assets/f86b6605-7411-4c53-9d28-a0aec4b05347" />
 
-## 需求-pingpong介面
-<img width="795" height="796" alt="image" src="https://github.com/user-attachments/assets/0aacc3d6-a6d3-498e-87ad-2d86b56a6ef4" />
+## 需求-乒乓球介面
+<img width="562" height="543" alt="image" src="https://github.com/user-attachments/assets/a72b5147-d7c6-4ce4-b146-5dd9b85d4fdd" />
 
 ## 需求-打磚塊介面
 <img width="692" height="499" alt="image" src="https://github.com/user-attachments/assets/40b9657c-09ae-43ec-b9eb-8cd628fade0c" />
