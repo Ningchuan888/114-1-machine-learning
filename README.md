@@ -39,6 +39,9 @@ Windows 10 專業版64位元
 <img width="1292" height="827" alt="image" src="https://github.com/user-attachments/assets/be58d2a9-ecbd-499b-aeab-f86ea7971f8f" />
 <img width="300" height="886" alt="image" src="https://github.com/user-attachments/assets/f032a1d7-eefd-43ac-82d7-020112aa92bc" />
 
+## Learning Curve 學習曲線(loss function)
+<img width="1250" height="741" alt="未命名" src="https://github.com/user-attachments/assets/20d81c24-391a-4cbd-ad95-285e8a59bed9" />
+
 ## API
 ### 專案 : 資料收集與規則階段 (ml_play_rule.py)
 <img width="1076" height="783" alt="image" src="https://github.com/user-attachments/assets/f7d36e7e-dcf3-467d-b9d0-8bcda441fb53" />
@@ -258,12 +261,16 @@ Windows 10 專業版64位元
         print(f"[{self.side}] 這一局結束。")
 
 # 打磚塊
+
 ## 架構
 <img width="1798" height="827" alt="image" src="https://github.com/user-attachments/assets/0c5bef01-9a59-438d-8727-37bcabd6385c" />
 
 ## 設計
 <img width="486" height="827" alt="image" src="https://github.com/user-attachments/assets/c1709992-8bf9-4232-a922-59e2f1095f12" />
 <img width="1128" height="885" alt="image" src="https://github.com/user-attachments/assets/9e08e58c-bb35-44e3-ad64-25e7993068a0" />
+
+## Learning Curve 學習曲線(loss function)
+<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/3c85e751-6ea2-49e4-a751-2a7018535b47" />
 
 ## API
 ### 專案 : 資料搜集階段 (ml_play.py)
